@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REPO_URL = 'https://github.com/projectemern/Content-service.git'
+        REPO_URL = 'https://github.com/Kameshjustin/contentservice.git'
         IMAGE_NAME = 'content-service'
         CONTAINER_NAME = 'content-service'
     }
@@ -13,7 +13,7 @@ pipeline {
                 echo 'Checking out source code from private GitHub repo...'
                 git branch: 'main',
                     url: "${REPO_URL}",
-                    credentialsId: 'github_credentials'
+                    credentialsId: 'git-cred-akjus'
             }
         }
 
