@@ -3,16 +3,11 @@ pipeline {
 
     environment {
         SONARQUBE     = "sonar-local"
-
         APP_NAME      = "microserver01"
-
         AWS_REGION    = "eu-north-1"
         AWS_ACCOUNT_ID = "006965591834"
-
         ECR_REGISTRY  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-
         IMAGE_TAG     = "${BUILD_NUMBER}"
-
         FULL_IMAGE    = "${ECR_REGISTRY}/${APP_NAME}:${IMAGE_TAG}"
     }
 
@@ -66,7 +61,7 @@ pipeline {
 
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'askey-seakey-cred-aj'
+                    credentialsId: 'acc-secretaws-may07-gpaws'
                 ]]) {
 
                     sh """
