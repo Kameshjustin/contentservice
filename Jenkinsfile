@@ -2,6 +2,7 @@ pipeline {
     agent any
  
     environment {
+        SONARQUBE = "sonar-local"
         APP_NAME = 'microserver01'
         AWS_REGION = 'eu-north-1.'
         AWS_ACCOUNT_ID = '006965591834'
@@ -20,14 +21,15 @@ pipeline {
  
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh """
-                        ${tool 'SonarScanner'}/bin/sonar-scanner \
-                        -Dsonar.projectKey=backend-project \
-                        -Dsonar.projectName=backend-project \
+                withSonarQubeEnv("${SONARQUBE}") {
+                    sh '''
+                        sonar-scanner \
+                        -Dsonar.projectKey=My-App \
+                        -Dsonar.projectName="My App" \
+                        -Dsonar.projectVersion=1.0 \
                         -Dsonar.sources=. \
-                        -Dsonar.exclusions=node_modules/*,/.test.js
-                    """
+                        -Dsonar.exclusions=node_modules/,build/
+                    '''
                 }
             }
         }
