@@ -1,42 +1,33 @@
 pipeline {
- 
     agent any
-    
-    tools {
-        'hudson.plugins.sonar.SonarRunnerInstallation' 'sonar-scanner'
-    }
  
     environment {
-        SONARQUBE = "sonar-local"
-        AWS_REGION = "eu-north-1"
-        ECR_REPO = "microservices-app"
-        AWS_ACCOUNT_ID = "006965591834"
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        APP_NAME = 'micro-services'
+        AWS_REGION = 'us-east-1'
+        AWS_ACCOUNT_ID = '841162684034'
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        FULL_IMAGE = "${ECR_REGISTRY}/${APP_NAME}:${IMAGE_TAG}"
     }
  
     stages {
  
-        stage('Checkout') {
+        stage('Clone Backend Code') {
             steps {
-                git(
-                    branch: 'main',
-                    credentialsId: 'git-cred-akjus',
-                    url: 'https://github.com/Kameshjustin/contentservice.git'
-                )
+                git branch: 'main', url: 'https://github.com/peakyblinder0509/microservice-project.git'
             }
         }
  
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv("${SONARQUBE}") {
-                    sh '''
-                        sonar-scanner \
-                        -Dsonar.projectKey=My-App \
-                        -Dsonar.projectName="My App" \
-                        -Dsonar.projectVersion=1.0 \
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        ${tool 'SonarScanner'}/bin/sonar-scanner \
+                        -Dsonar.projectKey=backend-project \
+                        -Dsonar.projectName=backend-project \
                         -Dsonar.sources=. \
-                        -Dsonar.exclusions=node_modules/,build/
-                    '''
+                        -Dsonar.exclusions=node_modules/*,/.test.js
+                    """
                 }
             }
         }
@@ -51,64 +42,51 @@ pipeline {
  
         stage('Build Docker Image') {
             steps {
-                sh '''
-                    docker build -t $ECR_REPO:$IMAGE_TAG .
-                '''
+                sh "docker build -t ${FULL_IMAGE} ."
             }
         }
  
-        stage('Push to ECR') {
+        stage('Push to AWS ECR') {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-cred'
+                    credentialsId: 'aws-crd'
                 ]]) {
-                    sh '''
-                        aws ecr get-login-password --region $AWS_REGION | \
-                        docker login --username AWS --password-stdin \
-                        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-
-                        docker tag $ECR_REPO:$IMAGE_TAG \
-                        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
-
-                        docker push \
-                        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
-                    '''
+                    sh """
+                        aws ecr get-login-password --region ${AWS_REGION} \
+                        | docker login \
+                            --username AWS \
+                            --password-stdin ${ECR_REGISTRY}
+ 
+                        docker push ${FULL_IMAGE}
+ 
+                        docker tag ${FULL_IMAGE} ${ECR_REGISTRY}/${APP_NAME}:latest
+                        docker push ${ECR_REGISTRY}/${APP_NAME}:latest
+                    """
                 }
             }
         }
  
-        stage('Deploy to EC2') {
+        stage('Stop Old Container') {
             steps {
-                sshagent(['micro-cred']) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no ubuntu@16.171.166.136 "
-                        aws ecr get-login-password --region eu-north-1 | \
-                        docker login --username AWS --password-stdin \
-                        $AWS_ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com
-
-                        docker pull \
-                        $AWS_ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/$ECR_REPO:$IMAGE_TAG
-
-                        docker stop microservices-app || true
-                        docker rm microservices-app || true
-
-                        docker run -d \
-                        --name microservices-app \
-                        -p 80:8080 \
-                        $AWS_ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/$ECR_REPO:$IMAGE_TAG
-                        "
-                    '''
-                }
+                sh 'docker rm -f backend || true'
             }
         }
  
-        stage('Cleanup') {
+        stage('Run New Container') {
             steps {
-                sh '''
-                    docker system prune -f
-                '''
+                sh "docker run -d -p 5000:5000 --name backend ${FULL_IMAGE}"
+                sh 'docker ps'
             }
         }
     }
-} 
+ 
+    post {
+        success {
+            echo " Pipeline SUCCESS — Build #${env.BUILD_NUMBER} pushed to ECR!"
+        }
+        failure {
+            echo " Pipeline FAILED — Check the stage that turned red."
+        }
+    }
+}
