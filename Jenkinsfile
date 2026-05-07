@@ -2,9 +2,9 @@ pipeline {
     agent any
  
     environment {
-        APP_NAME = 'micro-services'
-        AWS_REGION = 'us-east-1'
-        AWS_ACCOUNT_ID = '841162684034'
+        APP_NAME = 'microserver01'
+        AWS_REGION = 'eu-north-1.'
+        AWS_ACCOUNT_ID = '006965591834'
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
         FULL_IMAGE = "${ECR_REGISTRY}/${APP_NAME}:${IMAGE_TAG}"
@@ -14,7 +14,7 @@ pipeline {
  
         stage('Clone Backend Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/peakyblinder0509/microservice-project.git'
+                git branch: 'main', url: 'https://github.com/Kameshjustin/contentservice.git'
             }
         }
  
@@ -50,7 +50,7 @@ pipeline {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-crd'
+                    credentialsId: 'askey-seakey-cred-aj'
                 ]]) {
                     sh """
                         aws ecr get-login-password --region ${AWS_REGION} \
